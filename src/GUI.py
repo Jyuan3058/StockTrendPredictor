@@ -1,6 +1,5 @@
 import matplotlib
 matplotlib.use('Agg')
-print(matplotlib.get_backend())
 
 import tkinter as tk
 from tkinter import ttk, messagebox
@@ -170,28 +169,67 @@ class StockCryptoGUI:
             training_results = self.trainer.train(data['training_sets'])
             
             if isinstance(training_results, dict):
-                # Display training results
-                results_text = (
+                # Create a frame for model performance
+                model_frame = ttk.LabelFrame(trend_frame, text="Model Performance")
+                model_frame.pack(fill='x', padx=10, pady=5)
+                
+                # Display training metrics
+                metrics_text = (
                     f"Training Accuracy: {training_results['train_accuracy']:.2%}\n"
-                    f"Test Accuracy: {training_results['test_accuracy']:.2%}\n\n"
+                    f"Testing Accuracy: {training_results['test_accuracy']:.2%}\n"
                 )
+                ttk.Label(model_frame, text=metrics_text, justify=tk.LEFT).pack(padx=10, pady=5)
                 
                 # Make prediction for current trend
                 latest_features = data['training_sets']['all']['features'][-1:]
                 prediction = self.trainer.predict(latest_features)
                 
                 if isinstance(prediction, dict):
+                    # Create prediction frame
+                    pred_frame = ttk.LabelFrame(trend_frame, text="Current Prediction")
+                    pred_frame.pack(fill='x', padx=10, pady=5)
+                    
                     trend = "Positive" if prediction['prediction'] == 1 else "Negative"
-                    results_text += (
-                        f"Current Trend Prediction: {trend}\n"
-                        f"Confidence: {prediction['probability']:.2%}"
+                    pred_text = (
+                        f"Trend Prediction: {trend}\n"
+                        f"Confidence: {prediction['probability']:.2%}\n"
                     )
-                
-                trend_label = ttk.Label(trend_frame, text=results_text, justify=tk.LEFT)
-                trend_label.pack(padx=10, pady=10)
+                    ttk.Label(pred_frame, text=pred_text, justify=tk.LEFT).pack(padx=10, pady=5)
+                    
+                    # Create feature analysis frame
+                    feature_frame = ttk.LabelFrame(trend_frame, text="Feature Analysis")
+                    feature_frame.pack(fill='x', padx=10, pady=5)
+                    
+                    # Create two columns: one for current values, one for importance
+                    values_frame = ttk.Frame(feature_frame)
+                    values_frame.pack(fill='x', padx=10, pady=5)
+                    
+                    # Left column: Current Values
+                    current_frame = ttk.LabelFrame(values_frame, text="Current Values")
+                    current_frame.pack(side='left', fill='x', expand=True, padx=5)
+                    
+                    for feature, value in prediction['feature_values'].items():
+                        ttk.Label(
+                            current_frame, 
+                            text=f"{feature}: {value:.4f}",
+                            justify=tk.LEFT
+                        ).pack(anchor='w', padx=5)
+                    
+                    # Right column: Feature Importance
+                    if hasattr(self.trainer, 'feature_importance'):
+                        importance_frame = ttk.LabelFrame(values_frame, text="Feature Importance")
+                        importance_frame.pack(side='left', fill='x', expand=True, padx=5)
+                        
+                        for feature, importance in self.trainer.feature_importance.items():
+                            ttk.Label(
+                                importance_frame,
+                                text=f"{feature}: {importance:.4f}",
+                                justify=tk.LEFT
+                            ).pack(anchor='w', padx=5)
+                else:
+                    ttk.Label(trend_frame, text=f"Error: {prediction}").pack(padx=10, pady=10)
             else:
-                trend_label = ttk.Label(trend_frame, text=f"Error: {training_results}")
-                trend_label.pack(padx=10, pady=10)
+                ttk.Label(trend_frame, text=f"Error: {training_results}").pack(padx=10, pady=10)
         
         # Add Backtesting tab
         backtest_frame = ttk.Frame(notebook)

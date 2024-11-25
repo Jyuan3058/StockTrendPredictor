@@ -16,7 +16,15 @@ class Trainer:
         """Train the model using the provided training sets"""
         try:
             # Get all features and labels
-            X = training_sets['all']['features']
+            X = pd.DataFrame(training_sets['all']['features'], columns=[
+                'SMA_50_ratio',
+                'SMA_200_ratio',
+                'RSI',
+                'MACD',
+                'MACD_Signal',
+                'Volatility',
+                'BB_Position'
+            ])
             y = training_sets['all']['labels']
 
             # Split the data
@@ -24,9 +32,17 @@ class Trainer:
                 X, y, test_size=0.2, random_state=42
             )
 
-            # Scale the features
-            X_train_scaled = self.scaler.fit_transform(X_train)
-            X_test_scaled = self.scaler.transform(X_test)
+            # Scale the features while preserving column names
+            X_train_scaled = pd.DataFrame(
+                self.scaler.fit_transform(X_train),
+                columns=X_train.columns,
+                index=X_train.index
+            )
+            X_test_scaled = pd.DataFrame(
+                self.scaler.transform(X_test),
+                columns=X_test.columns,
+                index=X_test.index
+            )
 
             # Train the model
             self.model.fit(X_train_scaled, y_train)
@@ -36,9 +52,16 @@ class Trainer:
             train_accuracy = self.model.score(X_train_scaled, y_train)
             test_accuracy = self.model.score(X_test_scaled, y_test)
 
+            # Store feature importance
+            self.feature_importance = pd.Series(
+                self.model.feature_importances_,
+                index=X_train.columns
+            ).sort_values(ascending=False)
+
             return {
                 'train_accuracy': train_accuracy,
-                'test_accuracy': test_accuracy
+                'test_accuracy': test_accuracy,
+                'feature_importance': self.feature_importance.to_dict()
             }
 
         except Exception as e:
@@ -50,16 +73,32 @@ class Trainer:
             return "Error: Model not trained yet"
 
         try:
+            # Convert to DataFrame with feature names
+            features_df = pd.DataFrame(features, columns=[
+                'SMA_50_ratio',
+                'SMA_200_ratio',
+                'RSI',
+                'MACD',
+                'MACD_Signal',
+                'Volatility',
+                'BB_Position'
+            ])
+            
             # Scale the features
-            features_scaled = self.scaler.transform(features)
+            features_scaled = pd.DataFrame(
+                self.scaler.transform(features_df),
+                columns=features_df.columns
+            )
+            
             # Get prediction probabilities
             probabilities = self.model.predict_proba(features_scaled)
             # Get predicted class
             prediction = self.model.predict(features_scaled)
 
             return {
-                'prediction': prediction[0],  # 0 for negative trend, 1 for positive
-                'probability': probabilities[0][prediction[0]]  # Probability of predicted class
+                'prediction': prediction[0],
+                'probability': probabilities[0][prediction[0]],
+                'feature_values': features_df.iloc[0].to_dict()  # Include actual feature values
             }
 
         except Exception as e:
